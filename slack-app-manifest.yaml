@@ -1,0 +1,25 @@
+display_information:
+  name: Lemlist Reply AI
+  description: AI-drafted replies to Lemlist inbound, approved from Slack.
+  background_color: "#1a1a1a"
+  long_description: "This app pairs with the Lemlist Reply AI n8n template. When a prospect replies to one of your Lemlist campaigns, an AI agent classifies the reply, drafts a contextual response, and posts it to Slack with Approve, Edit, and Decline buttons. Approve sends the reply through the Lemlist API. Edit opens a modal to tweak the draft before sending. Decline leaves the thread for you to handle manually in Lemlist. The app only reads channel and user metadata needed to render messages; it does not subscribe to events or read message history."
+features:
+  bot_user:
+    display_name: Lemlist Reply AI
+    always_online: true
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+      - chat:write.public
+      - chat:write.customize
+      - channels:read
+      - groups:read
+      - users:read
+settings:
+  interactivity:
+    is_enabled: true
+    request_url: https://example.com/placeholder-replace-after-n8n-activation
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

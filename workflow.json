@@ -1,0 +1,1094 @@
+{
+  "name": "[Template] Lemlist Reply AI (single-team)",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "leadEmail",
+              "value": "={{ $json.email || $json.fromEmail || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "leadName",
+              "value": "={{ $('Webhook').item.json.body.firstName }} {{ $('Webhook').item.json.body.lastName }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "replyText",
+              "value": "={{ $('Clean Reply Text').item.json.cleanedReply || $json.text || $json.messagePreview || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "replyPreview",
+              "value": "={{ $json.messagePreview }}",
+              "type": "string"
+            },
+            {
+              "id": "a5",
+              "name": "subject",
+              "value": "={{ $json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "a6",
+              "name": "campaignName",
+              "value": "={{ $json.campaignName || $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "a7",
+              "name": "senderName",
+              "value": "={{ $json.sendUserName }}",
+              "type": "string"
+            },
+            {
+              "id": "a8",
+              "name": "senderEmail",
+              "value": "={{ $json.sendUserEmail || $json.sendUserMailboxProviderId || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "a9",
+              "name": "contactId",
+              "value": "={{ $json.contactId }}",
+              "type": "string"
+            },
+            {
+              "id": "a10",
+              "name": "teamId",
+              "value": "={{ $json.teamId }}",
+              "type": "string"
+            },
+            {
+              "id": "a11",
+              "name": "campaignId",
+              "value": "={{ $json.campaignId }}",
+              "type": "string"
+            },
+            {
+              "id": "a12",
+              "name": "leadId",
+              "value": "={{ $json.leadId }}",
+              "type": "string"
+            },
+            {
+              "id": "a13",
+              "name": "sequenceId",
+              "value": "={{ $json.sequenceId }}",
+              "type": "string"
+            },
+            {
+              "id": "a14",
+              "name": "sendUserId",
+              "value": "={{ $json.sendUserId }}",
+              "type": "string"
+            },
+            {
+              "id": "a15",
+              "name": "sendUserMailboxId",
+              "value": "={{ $json.sendUserMailboxId }}",
+              "type": "string"
+            },
+            {
+              "id": "a16",
+              "name": "leadFirstName",
+              "value": "={{ $json.leadFirstName || $json.firstName || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "a17",
+              "name": "leadLastName",
+              "value": "={{ $json.leadLastName || $json.lastName || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "a18",
+              "name": "leadCompanyName",
+              "value": "={{ $json.companyName || $json.leadCompanyName || '' }}",
+              "type": "string"
+            }
+          ],
+          "assignments[7]": {
+            "value": "={{ $json.sendUserMailboxProviderId }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "affc51a7-dfe2-4212-a5f2-a221186082f8",
+      "name": "Extract Lead Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        464,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=CONTEXT\n\nYou are an AI assistant that analyzes replies received via Lemlist on behalf of a company representative.\n\nYour role is twofold:\n1. Categorize the incoming reply\n2. Draft an appropriate response aligned with the tone and business context\n\n\nABOUT THE COMPANY\n\n{{ $('Config').item.json.companyName }} \u2014 {{ $('Config').item.json.companyContext }}\n\nDefault response language: {{ $('Config').item.json.defaultLanguage }}\n\nSTEP 1: ANALYSIS AND CATEGORIZATION\n\nAnalyze the reply and classify it into ONE of the following categories:\n- meeting_request\n- demo_information_request\n- redirection\n- not_interested\n\n\nSTEP 2: TONE ANALYSIS\n\nIdentify the tone of the reply:\n- very_formal\n- formal\n- cordial\n\n\nSTEP 3: DRAFT RESPONSE\n\nWrite a response that:\n- Matches the identified tone\n- Is concise and clear\n- Is action-oriented\n- Directly addresses the intent of the reply\n\nIMPORTANT RULES:\n\n- For \"meeting_request\" and \"demo_information_request\":\n  DO NOT suggest specific time slots.\n  Use placeholders where time slots should appear.\n\n- For \"meeting_request\":\n  - Confirm availability\n  - Include a placeholder\n  - Suggest a meeting format (e.g., call, demo)\n\n- For \"demo_information_request\":\n  - Confirm that information will be shared\n  - Offer a short call using a placeholder\n\n- For \"redirection\":\n  - Thank the contact\n  - Ask for the appropriate person\u2019s contact details\n\n- For \"not_interested\":\n  - Thank them politely\n  - Keep the door open for future interaction\n\n\nLEAD INFORMATION:\n\nFirst Name: {{ $json.leadFirstName }}\nLast Name: {{ $json.leadLastName }}\nCompany: {{ $json.leadCompanyName }}\nEmail Subject: {{ $json.subject }}\nCampaign Name: {{ $json.campaignName }}\n\n\nRECEIVED MESSAGE:\n\n{{ $json.replyText || $json.replyPreview || 'Content not available' }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "id": "00870e63-66c9-4b36-ba69-a13aec2636d8",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        720,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0
+        }
+      },
+      "id": "40e1eaca-cd01-49d3-9a59-badd93bc916c",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        688,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"category\": \"demo_information_request\",\n\t\"detected_tone\": \"formal\",\n\t\"draft\": \"Bonjour Madame Dupont,\\n\\nJe vous remercie pour votre retour et votre int\u00e9r\u00eat pour notre soci\u00e9t\u00e9.\"\n}",
+        "autoFix": true
+      },
+      "id": "3881e1ff-d126-4f26-9b5c-54c685655b6a",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        816,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst lead = $('Extract Lead Data').first().json;\n\nlet replyBody = lead.replyText || lead.replyPreview || 'N/A';\nconst separators = [\n  /\\n_{10,}/, /\\n-{10,}/, /\\nDe\\s*:.*<.*>/, /\\nFrom\\s*:.*<.*>/,\n  /\\nEnvoy[e\\u00e9]\\s*:/, /\\nSent\\s*:/, /\\nLe \\d{1,2}.*a [e\\u00e9]crit\\s*:/,\n  /\\nOn \\w{3},.*wrote\\s*:/, /\\nVous n'obtenez pas souvent/\n];\nfor (const sep of separators) {\n  const match = replyBody.search(sep);\n  if (match > 0) { replyBody = replyBody.substring(0, match).trim(); break; }\n}\n\nconst lemlistUrl = `https://app.lemlist.com/teams/${lead.teamId}/inbox/list/myConversations/contacts/${lead.contactId}`;\n\nconst actionPayload = {\n  leadEmail: lead.leadEmail,\n  contactId: lead.contactId,\n  leadId: lead.leadId,\n  teamId: lead.teamId,\n  sendUserId: lead.sendUserId,\n  senderEmail: lead.senderEmail,\n  sendUserMailboxId: lead.sendUserMailboxId,\n  subject: lead.subject,\n  category: input.output.category,\n  draft: input.output.draft\n};\n\n// ========== CLIENT CONFIG ==========\n// \\u2b07\\ufe0f Change this channel ID for each client\nconst SLACK_CHANNEL = $('Config').first().json.slackChannelId; //\n// ===================================\n\nconst blocks = [\n  {\n    \"type\": \"section\",\n    \"text\": { \"type\": \"mrkdwn\", \"text\": \"\\ud83d\\udce9 *You received a new answer!*\" }\n  },\n  {\n    \"type\": \"section\",\n    \"fields\": [\n      { \"type\": \"mrkdwn\", \"text\": `*Category:* \\`${input.output.category}\\`` },\n      { \"type\": \"mrkdwn\", \"text\": `*Detected tone:* \\`${input.output.detected_tone}\\`` },\n      { \"type\": \"mrkdwn\", \"text\": `*Lead:* ${lead.leadEmail}` },\n      { \"type\": \"mrkdwn\", \"text\": `*Campaign:* ${lead.campaignName}` }\n    ]\n  },\n  { \"type\": \"divider\" },\n  {\n    \"type\": \"section\",\n    \"text\": { \"type\": \"mrkdwn\", \"text\": `\\ud83d\\udcac *Lead's answer :*\\n>${replyBody.replace(/\\n/g, '\\n>')}` }\n  },\n  { \"type\": \"divider\" },\n  {\n    \"type\": \"section\",\n    \"text\": { \"type\": \"mrkdwn\", \"text\": `\\u2709\\ufe0f *AI answer draft :*\\n\\`\\`\\`${input.output.draft}\\`\\`\\`` }\n  },\n  {\n    \"type\": \"section\",\n    \"text\": { \"type\": \"mrkdwn\", \"text\": `\\ud83d\\udc49 <${lemlistUrl}|Open in the Lemlist Inbox>` }\n  },\n  {\n    \"type\": \"actions\",\n    \"elements\": [\n      {\n        \"type\": \"button\",\n        \"text\": { \"type\": \"plain_text\", \"text\": \"Manage it myself\", \"emoji\": true },\n        \"action_id\": \"lemlist_disapprove\",\n        \"url\": lemlistUrl,\n        \"value\": JSON.stringify({ leadEmail: lead.leadEmail, contactId: lead.contactId, teamId: lead.teamId, category: input.output.category })\n      },\n      {\n        \"type\": \"button\",\n        \"text\": { \"type\": \"plain_text\", \"text\": \"Modify and send\", \"emoji\": true },\n        \"action_id\": \"lemlist_edit\",\n        \"value\": JSON.stringify(actionPayload)\n      },\n      {\n        \"type\": \"button\",\n        \"text\": { \"type\": \"plain_text\", \"text\": \"Send the draft\", \"emoji\": true },\n        \"style\": \"primary\",\n        \"action_id\": \"lemlist_approve\",\n        \"value\": JSON.stringify(actionPayload)\n      }\n    ]\n  }\n];\n\nreturn [{\n  json: {\n    apiBody: {\n      channel: SLACK_CHANNEL,\n      text: `New answer from ${lead.leadEmail} (${input.output.category})`,\n      blocks: blocks\n    }\n  }\n}];"
+      },
+      "id": "9094767d-8c2e-4c4d-b6ce-7751e3e15328",
+      "name": "Build Slack Blocks (Standard)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.apiBody) }}",
+        "options": {}
+      },
+      "id": "1cb1fa5d-ad75-46d9-a6a2-334e61415be5",
+      "name": "Slack Post Message (HTTP)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1408,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bd86cfac-b224-471a-9656-fbaf3ed6ec47",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "3e7e9d56-63c1-4ddf-b97e-180428bc83ab",
+      "name": "Slack Interaction Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        1456
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nlet payload;\nif (raw.body && raw.body.payload) {\n  payload = JSON.parse(raw.body.payload);\n} else if (raw.payload) {\n  payload = JSON.parse(raw.payload);\n} else {\n  payload = raw;\n}\n\n// Determine interaction type\nconst interactionType = payload.type; // 'block_actions' or 'view_submission'\n\nif (interactionType === 'view_submission') {\n  // Modal form submitted \u2014 extract edited message\n  const values = payload.view.state.values;\n  const editedDraft = values['edit-draft-block']['edit-draft-input'].value;\n  \n  // Recover metadata passed through private_metadata\n  let meta = {};\n  try {\n    meta = JSON.parse(payload.view.private_metadata);\n  } catch (e) { meta = {}; }\n  \n  return [{\n    json: {\n      actionType: 'modal_submit',\n      editedDraft: editedDraft,\n      triggerId: null,\n      channel: meta.channel || '',\n      messageTs: meta.messageTs || '',\n      userName: payload.user ? payload.user.name : 'unknown',\n      // All lead data from metadata\n      leadEmail: meta.leadEmail || '',\n      contactId: meta.contactId || '',\n      leadId: meta.leadId || '',\n      teamId: meta.teamId || '',\n      sendUserId: meta.sendUserId || '',\n      senderEmail: meta.senderEmail || '',\n      sendUserMailboxId: meta.sendUserMailboxId || '',\n      subject: meta.subject || '',\n      category: meta.category || '',\n      draft: editedDraft\n    }\n  }];\n}\n\n// Block actions (button clicks)\nconst action = payload.actions && payload.actions[0];\nconst actionId = action ? action.action_id : 'unknown';\nconst actionValue = action && action.value ? JSON.parse(action.value) : {};\nconst channel = payload.channel ? payload.channel.id : '';\nconst messageTs = payload.message ? payload.message.ts : '';\nconst originalBlocks = payload.message ? payload.message.blocks : [];\nconst userName = payload.user ? payload.user.name : 'unknown';\nconst triggerId = payload.trigger_id || null;\n\nlet actionType = 'decline';\nif (actionId === 'lemlist_approve') actionType = 'approve';\nelse if (actionId === 'lemlist_edit') actionType = 'edit';\nelse if (actionId === 'lemlist_disapprove') actionType = 'decline';\n\nreturn [{\n  json: {\n    actionType,\n    triggerId,\n    channel,\n    messageTs,\n    originalBlocks,\n    userName,\n    editedDraft: null,\n    ...actionValue\n  }\n}];"
+      },
+      "id": "a54edb7a-3889-49b5-9553-7bb3d7bc8827",
+      "name": "Parse Slack Interaction",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        1456
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "548365f4-4cc6-4e1a-9b5b-19c1b3c40e5d",
+      "name": "Respond to Slack",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        1456
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.lemlist.com/api/inbox/email",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"sendUserId\": \"{{ $('Parse Slack Interaction').item.json.sendUserId }}\",\n  \"sendUserEmail\": \"{{ $('Parse Slack Interaction').item.json.senderEmail }}\",\n  \"sendUserMailboxId\": \"{{ $('Parse Slack Interaction').item.json.sendUserMailboxId }}\",\n  \"contactId\": \"{{ $('Parse Slack Interaction').item.json.contactId }}\",\n  \"leadId\": \"{{ $('Parse Slack Interaction').item.json.leadId }}\",\n  \"subject\": \"{{ $('Parse Slack Interaction').item.json.subject }}\",\n  \"message\": {{ JSON.stringify('<p>' + $('Parse Slack Interaction').item.json.draft.replace(/\\\\n\\\\n/g, '</p><p>').replace(/\\\\n/g, '<br>') + '</p>') }}\n}",
+        "options": {}
+      },
+      "id": "9de4136b-6869-46c8-89da-adf2a4c9c509",
+      "name": "Send Reply via Lemlist",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        912,
+        1168
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Parse Slack Interaction').item.json.channel }}"
+        },
+        "ts": "={{ $('Parse Slack Interaction').item.json.messageTs }}",
+        "text": "=\u2705 *Answer sent to *{{ $('Parse Slack Interaction').item.json.leadEmail }}* via Lemlist (`{{ $('Parse Slack Interaction').item.json.category }}`)",
+        "updateFields": {},
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "15360636-3f20-4b84-8cef-66aac30667c0",
+      "name": "Update Slack - Sent",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        1136,
+        1264
+      ],
+      "webhookId": "ce701cc7-2d24-4114-9925-0c84d29a0a02",
+      "retryOnFail": false,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Parse Slack Interaction').item.json.channel }}"
+        },
+        "ts": "={{ $('Parse Slack Interaction').item.json.messageTs }}",
+        "text": "=\ud83d\udcdd *Managed manually* \u2014 *{{ $('Parse Slack Interaction').item.json.leadEmail }}* via Lemlist (`{{ $('Parse Slack Interaction').item.json.category }}`)",
+        "updateFields": {},
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "13e0da17-f287-4a54-98d5-be81900b6f19",
+      "name": "Update Slack - Manual",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        912,
+        1936
+      ],
+      "webhookId": "fc73ffa7-2676-49d8-8b75-01c95e80fa5f",
+      "retryOnFail": false,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "rule-approve",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.actionType }}",
+                    "rightValue": "approve"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Approve"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "rule-edit",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.actionType }}",
+                    "rightValue": "edit"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Edit"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "rule-submit",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.actionType }}",
+                    "rightValue": "modal_submit"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Modal Submit"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "rule-decline",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.actionType }}",
+                    "rightValue": "decline"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Decline"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "none"
+        }
+      },
+      "id": "68e5582f-1d83-4835-bf92-e5a3a423d28d",
+      "name": "Action Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        464,
+        1424
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/views.open",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"trigger_id\": \"{{ $json.triggerId }}\",\n  \"view\": {\n    \"type\": \"modal\",\n    \"callback_id\": \"lemlist_edit_modal\",\n    \"title\": {\n      \"type\": \"plain_text\",\n      \"text\": \"Modify the draft\"\n    },\n    \"submit\": {\n      \"type\": \"plain_text\",\n      \"text\": \"Send\"\n    },\n    \"close\": {\n      \"type\": \"plain_text\",\n      \"text\": \"Cancel\"\n    },\n    \"private_metadata\": {{ JSON.stringify(JSON.stringify({ leadEmail: $json.leadEmail, contactId: $json.contactId, leadId: $json.leadId, teamId: $json.teamId, sendUserId: $json.sendUserId, senderEmail: $json.senderEmail, sendUserMailboxId: $json.sendUserMailboxId, subject: $json.subject, category: $json.category, channel: $json.channel, messageTs: $json.messageTs })) }},\n    \"blocks\": [\n      {\n        \"type\": \"section\",\n        \"text\": {\n          \"type\": \"mrkdwn\",\n          \"text\": \"*Recipient:* {{ $json.leadEmail }}\\n*Category* `{{ $json.category }}`\\n*Subject:* {{ $json.subject }}\"\n        }\n      },\n      {\n        \"type\": \"divider\"\n      },\n      {\n        \"type\": \"input\",\n        \"block_id\": \"edit-draft-block\",\n        \"label\": {\n          \"type\": \"plain_text\",\n          \"text\": \"Message to be sent\"\n        },\n        \"element\": {\n          \"type\": \"plain_text_input\",\n          \"action_id\": \"edit-draft-input\",\n          \"multiline\": true,\n          \"initial_value\": {{ JSON.stringify($json.draft || '') }}\n        }\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "id": "590598af-3c71-4fc7-a90f-1fc4f1f549fc",
+      "name": "Open Edit Modal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        688,
+        1072
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.lemlist.com/api/inbox/email",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"sendUserId\": \"{{ $('Parse Slack Interaction').item.json.sendUserId }}\",\n  \"sendUserEmail\": \"{{ $('Parse Slack Interaction').item.json.senderEmail }}\",\n  \"sendUserMailboxId\": \"{{ $('Parse Slack Interaction').item.json.sendUserMailboxId }}\",\n  \"contactId\": \"{{ $('Parse Slack Interaction').item.json.contactId }}\",\n  \"leadId\": \"{{ $('Parse Slack Interaction').item.json.leadId }}\",\n  \"subject\": \"{{ $('Parse Slack Interaction').item.json.subject }}\",\n  \"message\": {{ JSON.stringify('<p>' + $('Parse Slack Interaction').item.json.editedDraft.replace(/\\\\n\\\\n/g, '</p><p>').replace(/\\\\n/g, '<br>') + '</p>') }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "0de6e736-0e8f-465d-8981-89c51c716e1a",
+      "name": "Send Edited Reply via Lemlist",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        912,
+        1552
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Parse Slack Interaction').item.json.channel }}"
+        },
+        "ts": "={{ $('Parse Slack Interaction').item.json.messageTs }}",
+        "text": "={{ \n  (() => {\n    let sendResult;\n    try { sendResult = $('Send Edited Reply via Lemlist').item.json; } catch(e) {}\n    \n    const hasError = sendResult && sendResult.error;\n    const leadEmail = $('Parse Slack Interaction').item.json.leadEmail;\n    const category = $('Parse Slack Interaction').item.json.category;\n    if (hasError) {\n      return '\u26a0\ufe0f *Sending error* \u2014 ' + sendResult.error + ' \u2014 *' + leadEmail + '* (`' + category + '`)';\n    }\n    return '\u270f\ufe0f *Answer modified and sent to *' + leadEmail + '* via Lemlist (`' + category + '`)';\n  })()\n}}",
+        "updateFields": {},
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "id": "6f7b0610-7244-4a08-ae41-61bdfec8aff9",
+      "name": "Update Slack - Edited & Sent",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        1136,
+        1648
+      ],
+      "webhookId": "532fbaef-d23a-41ab-b47f-5bab1b56b21d",
+      "retryOnFail": false,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Webhook trigger: unwrap body and pass through\n// Each webhook event = one reply, no deduplication needed\nconst item = $input.first().json;\nconst body = item.body || item;\n\n// Pass the body fields directly so downstream nodes\n// can access them via $json.fieldName (not $json.body.fieldName)\nreturn [{ json: body }];"
+      },
+      "id": "2317f196-abf4-4aa0-9036-57d10ec303c9",
+      "name": "Filter & Split New Replies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ef58a648-b0b7-42ae-a3f4-9ffa8d929dd9",
+        "options": {
+          "responseCode": {
+            "values": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -208,
+        640
+      ],
+      "id": "4270120a-1739-4256-951e-65fbfb7a4c8a",
+      "name": "Webhook",
+      "retryOnFail": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.channel }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.messageTs }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "86d3329f-ac82-45ca-af3b-dcd2389881df",
+      "name": "Valid Decline Payload?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        688,
+        1936
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function extractCleanReply(html, fallbackText = \"\") {\n  if (!html) return fallbackText || \"\";\n\n  // 1. Remove problematic blocks (Outlook, Gmail, etc.)\n  html = html\n    .replace(/<style[\\s\\S]*?>[\\s\\S]*?<\\/style>/gi, \"\")\n    .replace(/<script[\\s\\S]*?>[\\s\\S]*?<\\/script>/gi, \"\")\n    .replace(/<!--[\\s\\S]*?-->/g, \"\");\n\n  // 2. Normalize line breaks\n  html = html.replace(/<br\\s*\\/?>/gi, \"\\n\");\n\n  // 3. Cut HTML reply blocks (first match only)\n  const splitPatterns = [\n    'class=\"gmail_quote',\n    'gmail_quote_container',\n    '<blockquote',\n    'class=\"WordSection',\n    'id=\"replySplit\"',\n    'class=\"OutlookMessageHeader'\n  ];\n\n  for (const pattern of splitPatterns) {\n    const index = html.toLowerCase().indexOf(pattern.toLowerCase());\n    if (index !== -1) {\n      let tagStart = index;\n      while (tagStart > 0 && html[tagStart] !== '<') {\n        tagStart--;\n      }\n      html = html.substring(0, tagStart > 0 ? tagStart : index);\n      break;\n    }\n  }\n\n  // 4. Convert HTML \u2192 text\n  let text = html\n    .replace(/<\\/div>/gi, \"\\n\")\n    .replace(/<\\/p>/gi, \"\\n\")\n    .replace(/<[^>]*>/g, \"\")\n    .replace(/&nbsp;/gi, \" \")\n    .replace(/&#39;/g, \"'\")\n    .replace(/&amp;/g, \"&\")\n    .replace(/&quot;/g, '\"')\n    .replace(/&lt;/g, \"<\")\n    .replace(/&gt;/g, \">\");\n\n  // 5. Normalize whitespace (CRITICAL)\n  text = text\n    .replace(/\\u00A0/g, \" \")\n    .replace(/\\r/g, \"\")\n    .replace(/[ \\t]+/g, \" \")\n    .replace(/\\n{2,}/g, \"\\n\")\n    .trim();\n\n  // 6. Detect reply boundaries (multilingual + flexible)\n  const replySeparators = [\n    /^on .+wrote:$/i,\n    /^le .+a \u00e9crit\\s*:?\\s*$/i,\n\n    /^(from|de)\\s*:\\s*/i,\n    /^(sent|envoy\u00e9)\\s*:\\s*/i,\n    /^(to|\u00e0)\\s*:\\s*/i,\n    /^(subject|objet)\\s*:\\s*/i,\n\n    /^---+/,\n  ];\n\n  const lines = text.split(\"\\n\");\n  let cleanLines = [];\n\n  for (let line of lines) {\n    const normalized = line\n      .replace(/\\u00A0/g, \" \")\n      .trim();\n\n    const isReply = replySeparators.some((regex) =>\n      regex.test(normalized)\n    );\n\n    const looksLikeEmailHeader =\n      normalized.includes(\"@\") &&\n      (normalized.toLowerCase().includes(\"de\") ||\n       normalized.toLowerCase().includes(\"from\"));\n\n    if (isReply || looksLikeEmailHeader) break;\n\n    cleanLines.push(line);\n  }\n\n  text = cleanLines.join(\"\\n\").trim();\n\n  // 7. Remove common signatures\n  const signaturePatterns = [\n    /^--\\s*$/,\n    /^best regards[, ]*$/i,\n    /^kind regards[, ]*$/i,\n    /^cordialement[, ]*$/i,\n    /^bien cordialement[, ]*$/i,\n    /^sent from my/i\n  ];\n\n  const finalLines = text.split(\"\\n\");\n  let result = [];\n\n  for (let line of finalLines) {\n    const trimmed = line.trim();\n\n    const isSignature = signaturePatterns.some((regex) =>\n      regex.test(trimmed)\n    );\n\n    if (isSignature) break;\n\n    result.push(line);\n  }\n\n  text = result.join(\"\\n\").trim();\n\n  // 8. Fix escaped newlines (\ud83d\udd25 your issue)\n  text = text.replace(/\\\\n/g, \"\\n\");\n\n  // Optional: collapse multiple line breaks nicely\n  text = text.replace(/\\n{2,}/g, \"\\n\");\n\n  // 9. Fallback if result is too small\n  if (!text || text.length < 10) {\n    return fallbackText || \"\";\n  }\n\n  return text;\n}\n\n\n// n8n loop\nfor (const item of $input.all()) {\n  const html =\n    item.json.body?.html ||\n    item.json.html ||\n    \"\";\n\n  const text =\n    item.json.body?.text ||\n    item.json.body?.messagePreview ||\n    item.json.text ||\n    item.json.messagePreview ||\n    \"\";\n\n  const cleaned = extractCleanReply(html, text);\n\n  item.json.cleanedReply = cleaned;\n}\n\nreturn $input.all();"
+      },
+      "id": "e4ffa089-f697-4cff-aceb-2c66e356713d",
+      "name": "Clean Reply Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0
+        }
+      },
+      "id": "1d3c6576-c100-40a0-b9a3-813a39143950",
+      "name": "OpenAI Chat Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        816,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "companyName",
+              "value": "Your Company",
+              "type": "string"
+            },
+            {
+              "id": "c2",
+              "name": "companyContext",
+              "value": "[TYPE OF PRODUCT/SERVICE] that helps [TARGET USERS] to [CORE VALUE PROPOSITION].\nValue props:\n- ...\nTargets:\n- ...\nTone: professional, expert.",
+              "type": "string"
+            },
+            {
+              "id": "c3",
+              "name": "slackChannelId",
+              "value": "CXXXXXXXX",
+              "type": "string"
+            },
+            {
+              "id": "c4",
+              "name": "defaultLanguage",
+              "value": "en",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "config-node-0001",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        64,
+        440
+      ],
+      "notes": "Per-team config. Duplicate this workflow per team and edit this node + Lemlist/Slack credentials."
+    },
+    {
+      "parameters": {
+        "content": "## Lemlist Reply AI\n\nLemlist reply \u2192 AI classifies & drafts \u2192 Slack Approve / Edit / Decline \u2192 reply sent via Lemlist.\n\n**Do steps \u2460 \u2192 \u2467 in order.** Workflow won't activate until every credential is set.",
+        "height": 240,
+        "width": 380,
+        "color": 3
+      },
+      "id": "note-7f1ffd10-1ba5-4e69-aa61-93979656d84e",
+      "name": "README",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### \u2460 Create Slack app\n\n**Nodes to change:** none (external step in Slack)\n\n**Do this:**\n1. Open https://api.slack.com/apps in your browser.\n2. Click **Create New App** (top-right) \u2192 **From a manifest**.\n3. Pick your workspace \u2192 **Next**.\n4. Delete everything in the YAML box, paste the provided manifest \u2192 **Next** \u2192 **Create**.\n5. You land on the app's **Basic Information** page.\n6. Left sidebar \u2192 **Install App** \u2192 click **Install to Workspace** \u2192 **Allow**.\n7. Left sidebar \u2192 **OAuth & Permissions**.\n8. Under **OAuth Tokens for Your Workspace**, copy the **Bot User OAuth Token** (starts with `xoxb-`). You'll paste it in step \u2461.\n\nThe placeholder Interactivity URL is fine for now; you'll replace it in step \u2466.",
+        "height": 440,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-24e4b127-e69c-4db7-ae1b-be9f1527244e",
+      "name": "\u2460 Create Slack app",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### \u2461 Slack credential\n\n**Nodes to change:**\n\u2022 Slack Post Message (HTTP)\n\u2022 Open Edit Modal\n\u2022 Update Slack - Sent\n\u2022 Update Slack - Manual\n\u2022 Update Slack - Edited & Sent\n\n**Do this:**\n1. In n8n, top-left menu \u2192 **Credentials** \u2192 **Add credential**.\n2. Search **Header Auth** \u2192 select **Header Auth**.\n3. Fill:\n   \u2022 Name (credential): `Slack Bot Token`\n   \u2022 Name (header): `Authorization`\n   \u2022 Value: `Bearer xoxb-\u2026` (paste the token from step \u2460, keep the word `Bearer ` before it)\n4. **Save**.\n5. Open each of the 5 nodes above \u2192 in the node's **Credential** dropdown, pick `Slack Bot Token` \u2192 **Save** the node.",
+        "height": 460,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-1e22846b-331d-40e4-820f-67a27dd34588",
+      "name": "\u2461 Slack credential",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        680
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### \u2462 OpenAI credential\n\n**Nodes to change:**\n\u2022 OpenAI Chat Model\n\u2022 OpenAI Chat Model1\n\n**Do this:**\n1. Open https://platform.openai.com/api-keys in your browser.\n2. Click **Create new secret key** \u2192 copy it (starts with `sk-\u2026`).\n3. In n8n \u2192 **Credentials** \u2192 **Add credential** \u2192 search **OpenAI** \u2192 select **OpenAI API**.\n4. Paste the key in **API Key** \u2192 **Save**.\n5. Open both `OpenAI Chat Model` nodes \u2192 pick this credential \u2192 **Save**.\n\nDefault model `gpt-4o-mini` works. Swap to `gpt-4o` for higher quality.",
+        "height": 360,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-5aeb459d-7532-423c-b15e-f26c968db156",
+      "name": "\u2462 OpenAI credential",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        1180
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### \u2463 Lemlist Basic Auth\n\n**Nodes to change:**\n\u2022 Send Reply via Lemlist\n\u2022 Send Edited Reply via Lemlist\n\n**Do this:**\n1. In Lemlist (web app) \u2192 bottom-left profile icon \u2192 **Settings** \u2192 **Integrations** \u2192 **API**.\n2. Copy your API key (click **Generate** first if none exists).\n3. In n8n \u2192 **Credentials** \u2192 **Add credential** \u2192 search **HTTP Basic Auth** \u2192 select it.\n4. Fill:\n   \u2022 Name: `Lemlist API`\n   \u2022 Username: your Lemlist team name (visible top-left in Lemlist)\n   \u2022 Password: the API key\n5. **Save**.\n6. Open both nodes above \u2192 pick `Lemlist API` \u2192 **Save**.",
+        "height": 440,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-2b209de3-5ea1-4928-af38-44c5264abfb8",
+      "name": "\u2463 Lemlist Basic Auth",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        1580
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### \u2464 Fill the Config node\n\n**Nodes to change:**\n\u2022 Config\n\n**Do this \u2014 set these 4 fields inside the Config node:**\n\u2022 **companyName** \u2014 your brand\n\u2022 **companyContext** \u2014 what you do, for whom, value props, tone (3-5 lines)\n\u2022 **slackChannelId** \u2014 in Slack, right-click the target channel \u2192 **View channel details** \u2192 scroll to bottom \u2192 copy the **Channel ID** (starts with `C\u2026`)\n\u2022 **defaultLanguage** \u2014 `en` or `fr`\n\nClick **Save** in the node panel.",
+        "height": 380,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-f1f76a19-9824-4a82-bed8-370afdbe0e17",
+      "name": "\u2464 Fill the Config node",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        2060
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### \u2465 Activate the workflow\n\n**Nodes to change:** none\n\n**Do this:**\n1. Top-right of the n8n editor \u2192 toggle **Active** (switch turns green).\n2. If activation fails, n8n will highlight nodes in red \u2014 re-check credentials in \u2460\u2013\u2463.\n\nOnce active, both Webhook nodes now have **Production URLs** ready for steps \u2466 and \u2467.",
+        "height": 300,
+        "width": 380,
+        "color": 5
+      },
+      "id": "note-efc91a1e-86ba-44a5-8c37-524e1cc40b89",
+      "name": "\u2465 Activate the workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        2480
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### \u2466 Paste Interaction URL in Slack\n\n**Nodes to change:**\n\u2022 Slack Interaction Webhook (just copy its URL \u2014 no edits)\n\n**Do this:**\n1. In n8n, open the **Slack Interaction Webhook** node.\n2. Click the **Production URL** field \u2192 copy the full URL.\n3. In your Slack app (api.slack.com/apps \u2192 your app) \u2192 left sidebar \u2192 **Interactivity & Shortcuts**.\n4. Toggle **Interactivity** on (if not already).\n5. Paste the URL into **Request URL** \u2192 **Save Changes** (bottom-right).",
+        "height": 360,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-b4fcac42-11b0-4393-9e07-daddc423a54d",
+      "name": "\u2466 Paste Interaction URL in Slack",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        2820
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### \u2467 Register webhook in Lemlist\n\n**Nodes to change:**\n\u2022 Webhook (top of Flow A \u2014 just copy its URL)\n\n**Do this:**\n1. In n8n, open the **Webhook** node at the very start of the flow.\n2. Copy its **Production URL**.\n3. In Lemlist \u2192 **Settings** \u2192 **Integrations** \u2192 **Webhooks** \u2192 **+ Add webhook**.\n4. Paste the URL.\n5. Event: select `lemlistReplyReceived`.\n6. **Save**.\n\nSend a test reply to a live Lemlist campaign to verify the Slack message appears.",
+        "height": 400,
+        "width": 380,
+        "color": 4
+      },
+      "id": "note-cecad1be-0a04-4b70-8878-7afd5a262921",
+      "name": "\u2467 Register webhook in Lemlist",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        3220
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Optional: tune the AI prompt\n\n**Nodes to change (only if customizing):**\n\u2022 AI Agent\n\u2022 Structured Output Parser (keep schema in sync if you add fields)\n\n**Do this (optional):**\nCompany info is already injected from the Config node \u2014 no edit needed to ship.\n\nTo customize, open AI Agent and adjust the categories (`meeting_request`, `demo_information_request`, `redirection`, `not_interested`) and the reply rules per category.",
+        "height": 340,
+        "width": 360,
+        "color": 6
+      },
+      "id": "note-f14e1cf8-a8d2-4efb-9714-b8121f7ed22b",
+      "name": "Optional \u2014 tune the AI prompt",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        600,
+        180
+      ]
+    }
+  ],
+  "connections": {
+    "Extract Lead Data": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Build Slack Blocks (Standard)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Slack Blocks (Standard)": {
+      "main": [
+        [
+          {
+            "node": "Slack Post Message (HTTP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Interaction Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Slack Interaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Slack Interaction": {
+      "main": [
+        [
+          {
+            "node": "Respond to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reply via Lemlist": {
+      "main": [
+        [
+          {
+            "node": "Update Slack - Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Slack": {
+      "main": [
+        [
+          {
+            "node": "Action Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action Router": {
+      "main": [
+        [
+          {
+            "node": "Send Reply via Lemlist",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Open Edit Modal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Edited Reply via Lemlist",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Valid Decline Payload?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Edited Reply via Lemlist": {
+      "main": [
+        [
+          {
+            "node": "Update Slack - Edited & Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Decline Payload?": {
+      "main": [
+        [
+          {
+            "node": "Update Slack - Manual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter & Split New Replies": {
+      "main": [
+        [
+          {
+            "node": "Clean Reply Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Reply Text": {
+      "main": [
+        [
+          {
+            "node": "Extract Lead Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Filter & Split New Replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "myEvPOi2xbx5VzCs"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}
