@@ -697,7 +697,9 @@
             }
           ]
         },
-        "options": {}
+        "options": {
+          "includeOtherFields": true
+        }
       },
       "id": "config-node-0001",
       "name": "Config",
