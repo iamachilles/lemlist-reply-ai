@@ -23,9 +23,7 @@ An n8n automation that turns your Lemlist inbox into a one-click Slack approval 
 If you have [Claude Code](https://claude.com/claude-code):
 
 ```bash
-git clone https://github.com/iamachilles/lemlist-reply-ai
-cd lemlist-reply-ai
-claude
+rm -rf lemlist-reply-ai && git clone https://github.com/iamachilles/lemlist-reply-ai && cd lemlist-reply-ai && claude
 ```
 
 Then say: **"Deploy the Lemlist Reply AI workflow."**

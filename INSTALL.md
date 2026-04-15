@@ -9,9 +9,7 @@ The shortest path. You'll be done in about 5 minutes.
 ## 1. Clone and open
 
 ```bash
-git clone https://github.com/iamachilles/lemlist-reply-ai
-cd lemlist-reply-ai
-claude
+rm -rf lemlist-reply-ai && git clone https://github.com/iamachilles/lemlist-reply-ai && cd lemlist-reply-ai && claude
 ```
 
 ## 2. Say this to Claude
