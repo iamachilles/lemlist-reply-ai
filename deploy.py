@@ -183,12 +183,15 @@ def register_lemlist_webhook(api_key: str, team_name: str, webhook_url: str):
 # ─── Credential resolution (find-or-create) ──────────────────────────────
 CRED_SPECS = [
     # key, display name, n8n type, data-builder (takes env dict)
+    # Payloads tuned to n8n's schema quirks: slackApi needs `notice` when
+    # signatureSecret is absent; openAiApi needs explicit `header: false`
+    # to avoid the if-then branch that demands headerName/headerValue.
     ("slack_header", "Slack Bot Token", "httpHeaderAuth",
         lambda e: {"name": "Authorization", "value": f"Bearer {e['SLACK_BOT_TOKEN']}"}),
     ("slack_native", "Slack Bot (native)", "slackApi",
-        lambda e: {"accessToken": e["SLACK_BOT_TOKEN"]}),
+        lambda e: {"accessToken": e["SLACK_BOT_TOKEN"], "notice": ""}),
     ("openai", "OpenAI", "openAiApi",
-        lambda e: {"apiKey": e["OPENAI_API_KEY"]}),
+        lambda e: {"apiKey": e["OPENAI_API_KEY"], "header": False}),
     ("lemlist", "Lemlist API", "httpBasicAuth",
         lambda e: {"user": e["LEMLIST_TEAM_NAME"], "password": e["LEMLIST_API_KEY"]}),
 ]
