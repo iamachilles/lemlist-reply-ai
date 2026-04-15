@@ -2,6 +2,10 @@
 
 The shortest path. You'll be done in about 5 minutes.
 
+## Prerequisite
+
+[Claude Code](https://claude.com/claude-code) installed and authenticated. Run `claude --version` in your terminal to confirm.
+
 ## 1. Clone and open
 
 ```bash
