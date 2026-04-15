@@ -173,6 +173,9 @@ def register_lemlist_webhook(api_key: str, team_name: str, webhook_url: str):
         json={"targetUrl": webhook_url, "type": "lemlistReplyReceived"},
         timeout=20,
     )
+    if r.status_code == 409:
+        # Webhook already registered for this URL — idempotent success.
+        return True
     if not r.ok:
         print(f"⚠️  Lemlist webhook registration failed: {r.status_code} {r.text}", file=sys.stderr)
         print("    You can register it manually: Lemlist → Settings → Integrations → Webhooks", file=sys.stderr)
