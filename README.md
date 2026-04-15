@@ -20,9 +20,17 @@ An n8n automation that turns your Lemlist inbox into a one-click Slack approval 
 
 ### Option A — Automated with Claude Code (recommended)
 
-If you have [Claude Code](https://claude.com/claude-code), you can deploy the whole workflow in a single prompt. You still need to create the Slack app manually (Slack has no API for that), but the rest runs for you.
+If you have [Claude Code](https://claude.com/claude-code):
 
-See [INSTALL.md](./INSTALL.md).
+```bash
+git clone https://github.com/iamachilles/lemlist-reply-ai
+cd lemlist-reply-ai
+claude
+```
+
+Then say: **"Deploy the Lemlist Reply AI workflow."**
+
+Claude will ask you for the API keys one by one, set up everything, and print one final URL to paste in Slack. Full walkthrough: [INSTALL.md](./INSTALL.md).
 
 ### Option B — Manual in the n8n UI
 
