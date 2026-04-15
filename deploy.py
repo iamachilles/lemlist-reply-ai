@@ -2,14 +2,15 @@
 """
 Deploy the Lemlist Reply AI workflow to an n8n instance.
 
-What this does (calls n8n REST API):
-  1. Creates 3 credentials (Slack header auth, OpenAI, Lemlist basic auth)
-  2. Imports workflow.json
-  3. Patches all nodes that need credentials
-  4. Patches the Config node with company / Slack channel / language
-  5. Activates the workflow
-  6. Registers the Lemlist webhook for `lemlistReplyReceived` via Lemlist API
-  7. Prints the Slack Interaction URL (last manual step: paste into Slack app)
+End-to-end automation:
+  1. Finds or creates 4 n8n credentials (Slack header, Slack native, OpenAI, Lemlist).
+  2. Imports workflow.json with credentials pre-assigned and Config filled.
+  3. Activates the workflow.
+  4. Registers the Lemlist webhook for lemlistReplyReceived.
+  5. Prints the final Slack Interaction URL to paste into your Slack app.
+
+No n8n UI clicks required unless the API rejects credential creation, in
+which case the script prints a fallback with precise manual steps.
 
 Usage:
   cp .env.example .env   # fill in values
@@ -20,7 +21,6 @@ Requires: requests (`pip install requests`)
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -74,73 +74,73 @@ class N8N:
         self.base = base_url.rstrip("/")
         self.h = {"X-N8N-API-KEY": api_key, "Content-Type": "application/json"}
 
-    def _req(self, method: str, path: str, **kw):
-        r = requests.request(method, f"{self.base}/api/v1{path}", headers=self.h, **kw)
-        if not r.ok:
+    def _req(self, method: str, path: str, raise_on_error=True, **kw):
+        r = requests.request(method, f"{self.base}/api/v1{path}", headers=self.h, timeout=30, **kw)
+        if not r.ok and raise_on_error:
             print(f"n8n {method} {path} failed: {r.status_code} {r.text}", file=sys.stderr)
             sys.exit(1)
-        return r.json() if r.text else {}
+        return r
 
-    def create_credential(self, name: str, type_: str, data: dict) -> str:
+    def try_create_credential(self, name: str, type_: str, data: dict) -> tuple[str | None, str | None]:
+        """Attempt to create a credential. Returns (id, error_message)."""
+        # Some n8n builds require a `nodesAccess` array. It's been deprecated but still accepted.
         body = {"name": name, "type": type_, "data": data}
-        return self._req("POST", "/credentials", json=body)["id"]
+        r = self._req("POST", "/credentials", raise_on_error=False, json=body)
+        if r.ok:
+            return r.json().get("id"), None
+        # Try once with nodesAccess: []
+        body["nodesAccess"] = []
+        r = self._req("POST", "/credentials", raise_on_error=False, json=body)
+        if r.ok:
+            return r.json().get("id"), None
+        return None, r.text
+
+    def list_credentials(self) -> list[dict]:
+        r = self._req("GET", "/credentials", raise_on_error=False)
+        if not r.ok:
+            return []
+        body = r.json()
+        return body.get("data", body) if isinstance(body, dict) else body
+
+    def find_credential_by_name(self, name: str) -> str | None:
+        for c in self.list_credentials():
+            if c.get("name") == name:
+                return c.get("id")
+        return None
 
     def create_workflow(self, wf: dict) -> str:
-        # n8n API rejects extra keys like 'active', 'pinData', 'tags' on create
         clean = {k: wf[k] for k in ("name", "nodes", "connections", "settings") if k in wf}
         clean.setdefault("settings", {})
-        return self._req("POST", "/workflows", json=clean)["id"]
-
-    def update_workflow(self, wf_id: str, wf: dict):
-        clean = {k: wf[k] for k in ("name", "nodes", "connections", "settings") if k in wf}
-        clean.setdefault("settings", {})
-        self._req("PUT", f"/workflows/{wf_id}", json=clean)
+        r = self._req("POST", "/workflows", json=clean)
+        return r.json()["id"]
 
     def activate_workflow(self, wf_id: str):
         self._req("POST", f"/workflows/{wf_id}/activate")
 
-    def get_workflow(self, wf_id: str) -> dict:
-        return self._req("GET", f"/workflows/{wf_id}")
 
-
-# ─── Transformations ──────────────────────────────────────────────────────
-SLACK_NODE_NAMES = {
-    "Slack Post Message (HTTP)",
-    "Open Edit Modal",
-}
-SLACK_NATIVE_NODE_NAMES = {
-    "Update Slack - Sent",
-    "Update Slack - Manual",
-    "Update Slack - Edited & Sent",
-}
-LEMLIST_NODE_NAMES = {
-    "Send Reply via Lemlist",
-    "Send Edited Reply via Lemlist",
-}
-OPENAI_NODE_NAMES = {
-    "OpenAI Chat Model",
-    "OpenAI Chat Model1",
-}
+# ─── Node → credential mapping ────────────────────────────────────────────
+SLACK_HEADER_NODES = {"Slack Post Message (HTTP)", "Open Edit Modal"}
+SLACK_NATIVE_NODES = {"Update Slack - Sent", "Update Slack - Manual", "Update Slack - Edited & Sent"}
+LEMLIST_NODES = {"Send Reply via Lemlist", "Send Edited Reply via Lemlist"}
+OPENAI_NODES = {"OpenAI Chat Model", "OpenAI Chat Model1"}
 
 
 def patch_workflow(wf: dict, cred_ids: dict, env: dict):
-    """Assign credentials and fill Config node values in place."""
     for node in wf["nodes"]:
         name = node["name"]
-
-        if name in SLACK_NODE_NAMES:
+        if name in SLACK_HEADER_NODES:
             node["credentials"] = {
                 "httpHeaderAuth": {"id": cred_ids["slack_header"], "name": "Slack Bot Token"}
             }
-        elif name in SLACK_NATIVE_NODE_NAMES:
+        elif name in SLACK_NATIVE_NODES:
             node["credentials"] = {
                 "slackApi": {"id": cred_ids["slack_native"], "name": "Slack Bot (native)"}
             }
-        elif name in LEMLIST_NODE_NAMES:
+        elif name in LEMLIST_NODES:
             node["credentials"] = {
                 "httpBasicAuth": {"id": cred_ids["lemlist"], "name": "Lemlist API"}
             }
-        elif name in OPENAI_NODE_NAMES:
+        elif name in OPENAI_NODES:
             node["credentials"] = {
                 "openAiApi": {"id": cred_ids["openai"], "name": "OpenAI"}
             }
@@ -165,7 +165,7 @@ def find_production_url(wf: dict, node_name: str, base_url: str) -> str | None:
     return None
 
 
-# ─── Lemlist webhook registration (direct API, no MCP) ────────────────────
+# ─── Lemlist webhook registration ─────────────────────────────────────────
 def register_lemlist_webhook(api_key: str, team_name: str, webhook_url: str):
     r = requests.post(
         "https://api.lemlist.com/api/hooks",
@@ -174,24 +174,49 @@ def register_lemlist_webhook(api_key: str, team_name: str, webhook_url: str):
         timeout=20,
     )
     if not r.ok:
-        print(f"Lemlist webhook registration failed: {r.status_code} {r.text}", file=sys.stderr)
-        sys.exit(1)
-    return r.json()
+        print(f"⚠️  Lemlist webhook registration failed: {r.status_code} {r.text}", file=sys.stderr)
+        print("    You can register it manually: Lemlist → Settings → Integrations → Webhooks", file=sys.stderr)
+        return False
+    return True
 
 
-def patch_config_only(wf: dict, env: dict):
-    """Fill Config node values. Leave credentials empty — user wires them in UI."""
-    for node in wf["nodes"]:
-        if node["name"] == "Config":
-            for a in node["parameters"]["assignments"]["assignments"]:
-                if a["name"] == "companyName":
-                    a["value"] = env["COMPANY_NAME"]
-                elif a["name"] == "companyContext":
-                    a["value"] = env["COMPANY_CONTEXT"]
-                elif a["name"] == "slackChannelId":
-                    a["value"] = env["SLACK_CHANNEL_ID"]
-                elif a["name"] == "defaultLanguage":
-                    a["value"] = env["DEFAULT_LANGUAGE"]
+# ─── Credential resolution (find-or-create) ──────────────────────────────
+CRED_SPECS = [
+    # key, display name, n8n type, data-builder (takes env dict)
+    ("slack_header", "Slack Bot Token", "httpHeaderAuth",
+        lambda e: {"name": "Authorization", "value": f"Bearer {e['SLACK_BOT_TOKEN']}"}),
+    ("slack_native", "Slack Bot (native)", "slackApi",
+        lambda e: {"accessToken": e["SLACK_BOT_TOKEN"]}),
+    ("openai", "OpenAI", "openAiApi",
+        lambda e: {"apiKey": e["OPENAI_API_KEY"]}),
+    ("lemlist", "Lemlist API", "httpBasicAuth",
+        lambda e: {"user": e["LEMLIST_TEAM_NAME"], "password": e["LEMLIST_API_KEY"]}),
+]
+
+
+def resolve_credentials(n8n: N8N, env: dict) -> tuple[dict, list[str]]:
+    """Returns (cred_ids dict, list of failure messages). If all succeed, failures is empty."""
+    cred_ids: dict[str, str] = {}
+    failures: list[str] = []
+
+    # First try to find existing credentials by name (idempotent)
+    existing: dict[str, str] = {}
+    for c in n8n.list_credentials():
+        existing[c.get("name", "")] = c.get("id", "")
+
+    for key, cred_name, cred_type, build_data in CRED_SPECS:
+        if cred_name in existing:
+            cred_ids[key] = existing[cred_name]
+            print(f"     ✓ reusing existing credential '{cred_name}'")
+            continue
+        new_id, err = n8n.try_create_credential(cred_name, cred_type, build_data(env))
+        if new_id:
+            cred_ids[key] = new_id
+            print(f"     ✓ created credential '{cred_name}'")
+        else:
+            failures.append(f"Could not create '{cred_name}' (type {cred_type}): {err}")
+
+    return cred_ids, failures
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────
@@ -199,59 +224,61 @@ def main():
     env = load_env()
     n8n = N8N(env["N8N_BASE_URL"], env["N8N_API_KEY"])
 
-    print("1/5  Loading workflow.json and filling Config node…")
-    wf = json.loads(WORKFLOW_PATH.read_text())
-    patch_config_only(wf, env)
+    print("1/5  Resolving credentials in n8n (find or create)…")
+    cred_ids, failures = resolve_credentials(n8n, env)
 
-    print("2/5  Importing workflow…")
+    if failures:
+        print()
+        print("─" * 72)
+        print("⚠️  Some credentials could not be created via API.")
+        print("    This is usually an n8n version-specific schema issue.")
+        print("─" * 72)
+        for f in failures:
+            print(f"    {f}")
+        print()
+        print("Fallback: create the missing credentials manually in n8n UI, then rerun.")
+        print("n8n → Personal → Credentials tab → Add credential. Required:")
+        print()
+        print("  • Name: 'Slack Bot Token'        Type: Header Auth")
+        print("      Header: Authorization = Bearer <your xoxb- token>")
+        print("  • Name: 'Slack Bot (native)'     Type: Slack API")
+        print("      Access Token = <same xoxb- token>")
+        print("  • Name: 'OpenAI'                 Type: OpenAI API")
+        print("      API Key = <your sk- key>")
+        print("  • Name: 'Lemlist API'            Type: HTTP Basic Auth")
+        print("      User = <team name>, Password = <Lemlist API key>")
+        print()
+        print("Names must match exactly. Once created, rerun `python3 deploy.py`.")
+        sys.exit(1)
+
+    print("2/5  Loading and patching workflow.json…")
+    wf = json.loads(WORKFLOW_PATH.read_text())
+    patch_workflow(wf, cred_ids, env)
+
+    print("3/5  Importing workflow…")
     wf_id = n8n.create_workflow(wf)
 
-    print("3/5  Registering Lemlist webhook for lemlistReplyReceived…")
+    print("4/5  Activating workflow…")
+    n8n.activate_workflow(wf_id)
+
+    print("5/5  Registering Lemlist webhook…")
     lemlist_webhook_url = find_production_url(wf, "Webhook", env["N8N_BASE_URL"])
     register_lemlist_webhook(env["LEMLIST_API_KEY"], env["LEMLIST_TEAM_NAME"], lemlist_webhook_url)
-
-    print("4/5  Workflow imported, Lemlist webhook registered.")
-    print("5/5  Two manual steps remain — see below.\n")
 
     slack_interaction_url = find_production_url(wf, "Slack Interaction Webhook", env["N8N_BASE_URL"])
     wf_url = f"{env['N8N_BASE_URL']}/workflow/{wf_id}"
 
-    print("─" * 72)
-    print("MANUAL STEP A — Create 4 credentials in n8n and assign them")
-    print("─" * 72)
-    print(f"Open the workflow: {wf_url}")
-    print()
-    print("In n8n → Credentials → Add credential, create these 4:")
-    print()
-    print("  1. Slack Bot Token  (type: Header Auth)")
-    print(f"       Header name  : Authorization")
-    print(f"       Header value : Bearer {env['SLACK_BOT_TOKEN'][:8]}… (from .env)")
-    print("       Assign to   : Slack Post Message (HTTP), Open Edit Modal")
-    print()
-    print("  2. Slack Bot (native)  (type: Slack API)")
-    print(f"       Access Token : {env['SLACK_BOT_TOKEN'][:8]}… (from .env, same xoxb-)")
-    print("       Assign to   : Update Slack - Sent / Manual / Edited & Sent")
-    print()
-    print("  3. OpenAI  (type: OpenAI API)")
-    print(f"       API Key     : {env['OPENAI_API_KEY'][:7]}… (from .env)")
-    print("       Assign to   : OpenAI Chat Model, OpenAI Chat Model1")
-    print()
-    print("  4. Lemlist API  (type: HTTP Basic Auth)")
-    print(f"       Username    : {env['LEMLIST_TEAM_NAME']}")
-    print(f"       Password    : (Lemlist API key from .env)")
-    print("       Assign to   : Send Reply via Lemlist, Send Edited Reply via Lemlist")
-    print()
-    print("Then toggle the workflow Active (top-right switch).")
     print()
     print("─" * 72)
-    print("MANUAL STEP B — Paste this URL into your Slack app:")
+    print("✅  Deploy complete. One last step (in Slack, not n8n):")
     print("─" * 72)
-    print(f"  {slack_interaction_url}")
+    print(f"  Paste this URL: {slack_interaction_url}")
     print()
-    print("  1. api.slack.com/apps → your app → Interactivity & Shortcuts")
-    print("  2. Replace the placeholder Request URL with the URL above")
-    print("  3. Save Changes")
+    print("  1. api.slack.com/apps → your Lemlist Reply AI app")
+    print("  2. Left sidebar → Interactivity & Shortcuts")
+    print("  3. Replace the placeholder Request URL → Save Changes")
     print("─" * 72)
+    print(f"\nWorkflow: {wf_url}")
 
 
 if __name__ == "__main__":
