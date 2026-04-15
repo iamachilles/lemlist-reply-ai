@@ -139,6 +139,17 @@ class N8N:
     def activate_workflow(self, wf_id: str):
         self._req("POST", f"/workflows/{wf_id}/activate")
 
+    def deactivate_workflow(self, wf_id: str):
+        self._req("POST", f"/workflows/{wf_id}/deactivate", raise_on_error=False)
+
+    def update_workflow(self, wf_id: str, wf: dict):
+        # n8n silently ignores PUT changes while a workflow is active.
+        # Deactivate first, update, then reactivate.
+        self.deactivate_workflow(wf_id)
+        clean = {k: wf[k] for k in ("name","nodes","connections","settings") if k in wf}
+        clean.setdefault("settings", {})
+        self._req("PUT", f"/workflows/{wf_id}", json=clean)
+
 
 # ─── Node → credential mapping ────────────────────────────────────────────
 SLACK_HEADER_NODES = {"Slack Post Message (HTTP)", "Open Edit Modal"}
