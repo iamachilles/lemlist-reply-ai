@@ -4,13 +4,11 @@ Deploy the Lemlist Reply AI workflow to an n8n instance.
 
 End-to-end automation:
   1. Finds or creates 4 n8n credentials (Slack header, Slack native, OpenAI, Lemlist).
+     Credential IDs are persisted to .env after first run for idempotent reruns.
   2. Imports workflow.json with credentials pre-assigned and Config filled.
   3. Activates the workflow.
-  4. Registers the Lemlist webhook for lemlistReplyReceived.
+  4. Registers the Lemlist webhook (type configurable via LEMLIST_WEBHOOK_TYPE).
   5. Prints the final Slack Interaction URL to paste into your Slack app.
-
-No n8n UI clicks required unless the API rejects credential creation, in
-which case the script prints a fallback with precise manual steps.
 
 Usage:
   cp .env.example .env   # fill in values
@@ -32,18 +30,18 @@ except ImportError:
 
 ROOT = Path(__file__).parent
 WORKFLOW_PATH = ROOT / "workflow.json"
+ENV_PATH = ROOT / ".env"
 
 
-# ─── Env loading ──────────────────────────────────────────────────────────
+# ─── Env loading / saving ─────────────────────────────────────────────────
 def load_env() -> dict:
-    env_path = ROOT / ".env"
-    if not env_path.exists():
-        print(f"Missing {env_path}. Copy .env.example to .env and fill it in.", file=sys.stderr)
+    if not ENV_PATH.exists():
+        print(f"Missing {ENV_PATH}. Copy .env.example to .env and fill it in.", file=sys.stderr)
         sys.exit(1)
 
     env: dict[str, str] = {}
     current_key: str | None = None
-    for raw in env_path.read_text().splitlines():
+    for raw in ENV_PATH.read_text().splitlines():
         if not raw or raw.startswith("#"):
             continue
         if "=" in raw and not raw.startswith(" "):
@@ -65,7 +63,45 @@ def load_env() -> dict:
         print(f"Missing in .env: {', '.join(missing)}", file=sys.stderr)
         sys.exit(1)
     env.setdefault("DEFAULT_LANGUAGE", "en")
+    env.setdefault("LEMLIST_WEBHOOK_TYPE", "emailsReplied")
     return env
+
+
+def persist_credential_ids(new_ids: dict[str, str]):
+    """Append/update CRED_ID_* entries in .env so reruns are idempotent."""
+    text = ENV_PATH.read_text()
+    lines = text.splitlines()
+    existing_keys = {l.partition("=")[0].strip() for l in lines if "=" in l and not l.startswith("#")}
+
+    updated = []
+    key_map = {
+        "slack_header": "N8N_CRED_ID_SLACK_HEADER",
+        "slack_native": "N8N_CRED_ID_SLACK_NATIVE",
+        "openai":       "N8N_CRED_ID_OPENAI",
+        "lemlist":      "N8N_CRED_ID_LEMLIST",
+    }
+    for line in lines:
+        handled = False
+        for cred_key, env_key in key_map.items():
+            if line.startswith(f"{env_key}=") and cred_key in new_ids:
+                updated.append(f"{env_key}={new_ids[cred_key]}")
+                handled = True
+                break
+        if not handled:
+            updated.append(line)
+
+    # Append any that weren't already in the file
+    appends = []
+    for cred_key, env_key in key_map.items():
+        if cred_key in new_ids and env_key not in existing_keys:
+            appends.append(f"{env_key}={new_ids[cred_key]}")
+    if appends:
+        if updated and updated[-1].strip():
+            updated.append("")
+        updated.append("# ─── Credential IDs (auto-written by deploy.py) ───")
+        updated.extend(appends)
+
+    ENV_PATH.write_text("\n".join(updated) + "\n")
 
 
 # ─── n8n API wrapper ──────────────────────────────────────────────────────
@@ -81,32 +117,18 @@ class N8N:
             sys.exit(1)
         return r
 
-    def try_create_credential(self, name: str, type_: str, data: dict) -> tuple[str | None, str | None]:
-        """Attempt to create a credential. Returns (id, error_message)."""
-        # Some n8n builds require a `nodesAccess` array. It's been deprecated but still accepted.
+    def create_credential(self, name: str, type_: str, data: dict) -> tuple[str | None, str | None]:
         body = {"name": name, "type": type_, "data": data}
-        r = self._req("POST", "/credentials", raise_on_error=False, json=body)
-        if r.ok:
-            return r.json().get("id"), None
-        # Try once with nodesAccess: []
-        body["nodesAccess"] = []
         r = self._req("POST", "/credentials", raise_on_error=False, json=body)
         if r.ok:
             return r.json().get("id"), None
         return None, r.text
 
-    def list_credentials(self) -> list[dict]:
-        r = self._req("GET", "/credentials", raise_on_error=False)
-        if not r.ok:
-            return []
-        body = r.json()
-        return body.get("data", body) if isinstance(body, dict) else body
-
-    def find_credential_by_name(self, name: str) -> str | None:
-        for c in self.list_credentials():
-            if c.get("name") == name:
-                return c.get("id")
-        return None
+    def credential_exists(self, cred_id: str) -> bool:
+        # n8n public API doesn't expose GET /credentials/:id — assume valid if provided.
+        # If it's been deleted manually the workflow import will fail loudly and the user
+        # can clear the ID from .env.
+        return bool(cred_id)
 
     def create_workflow(self, wf: dict) -> str:
         clean = {k: wf[k] for k in ("name", "nodes", "connections", "settings") if k in wf}
@@ -129,21 +151,13 @@ def patch_workflow(wf: dict, cred_ids: dict, env: dict):
     for node in wf["nodes"]:
         name = node["name"]
         if name in SLACK_HEADER_NODES:
-            node["credentials"] = {
-                "httpHeaderAuth": {"id": cred_ids["slack_header"], "name": "Slack Bot Token"}
-            }
+            node["credentials"] = {"httpHeaderAuth": {"id": cred_ids["slack_header"], "name": "Slack Bot Token"}}
         elif name in SLACK_NATIVE_NODES:
-            node["credentials"] = {
-                "slackApi": {"id": cred_ids["slack_native"], "name": "Slack Bot (native)"}
-            }
+            node["credentials"] = {"slackApi": {"id": cred_ids["slack_native"], "name": "Slack Bot (native)"}}
         elif name in LEMLIST_NODES:
-            node["credentials"] = {
-                "httpBasicAuth": {"id": cred_ids["lemlist"], "name": "Lemlist API"}
-            }
+            node["credentials"] = {"httpBasicAuth": {"id": cred_ids["lemlist"], "name": "Lemlist API"}}
         elif name in OPENAI_NODES:
-            node["credentials"] = {
-                "openAiApi": {"id": cred_ids["openai"], "name": "OpenAI"}
-            }
+            node["credentials"] = {"openAiApi": {"id": cred_ids["openai"], "name": "OpenAI"}}
         elif name == "Config":
             for a in node["parameters"]["assignments"]["assignments"]:
                 if a["name"] == "companyName":
@@ -166,29 +180,26 @@ def find_production_url(wf: dict, node_name: str, base_url: str) -> str | None:
 
 
 # ─── Lemlist webhook registration ─────────────────────────────────────────
-def register_lemlist_webhook(api_key: str, team_name: str, webhook_url: str):
+def register_lemlist_webhook(api_key: str, team_name: str, webhook_url: str, event_type: str):
     r = requests.post(
         "https://api.lemlist.com/api/hooks",
         auth=(team_name, api_key),
-        json={"targetUrl": webhook_url, "type": "lemlistReplyReceived"},
+        json={"targetUrl": webhook_url, "type": event_type},
         timeout=20,
     )
     if r.status_code == 409:
-        # Webhook already registered for this URL — idempotent success.
-        return True
+        return True  # idempotent
     if not r.ok:
         print(f"⚠️  Lemlist webhook registration failed: {r.status_code} {r.text}", file=sys.stderr)
-        print("    You can register it manually: Lemlist → Settings → Integrations → Webhooks", file=sys.stderr)
+        print("    Fallback: register manually in Lemlist → Settings → Integrations → Webhooks", file=sys.stderr)
         return False
     return True
 
 
-# ─── Credential resolution (find-or-create) ──────────────────────────────
+# ─── Credential resolution ────────────────────────────────────────────────
 CRED_SPECS = [
-    # key, display name, n8n type, data-builder (takes env dict)
-    # Payloads tuned to n8n's schema quirks: slackApi needs `notice` when
-    # signatureSecret is absent; openAiApi needs explicit `header: false`
-    # to avoid the if-then branch that demands headerName/headerValue.
+    # key, display name, n8n type, data-builder
+    # Schema quirks: slackApi needs `notice:""`; openAiApi needs `header:False`.
     ("slack_header", "Slack Bot Token", "httpHeaderAuth",
         lambda e: {"name": "Authorization", "value": f"Bearer {e['SLACK_BOT_TOKEN']}"}),
     ("slack_native", "Slack Bot (native)", "slackApi",
@@ -199,28 +210,36 @@ CRED_SPECS = [
         lambda e: {"user": e["LEMLIST_TEAM_NAME"], "password": e["LEMLIST_API_KEY"]}),
 ]
 
+ENV_ID_KEY = {
+    "slack_header": "N8N_CRED_ID_SLACK_HEADER",
+    "slack_native": "N8N_CRED_ID_SLACK_NATIVE",
+    "openai":       "N8N_CRED_ID_OPENAI",
+    "lemlist":      "N8N_CRED_ID_LEMLIST",
+}
+
 
 def resolve_credentials(n8n: N8N, env: dict) -> tuple[dict, list[str]]:
-    """Returns (cred_ids dict, list of failure messages). If all succeed, failures is empty."""
     cred_ids: dict[str, str] = {}
     failures: list[str] = []
-
-    # First try to find existing credentials by name (idempotent)
-    existing: dict[str, str] = {}
-    for c in n8n.list_credentials():
-        existing[c.get("name", "")] = c.get("id", "")
+    newly_created: dict[str, str] = {}
 
     for key, cred_name, cred_type, build_data in CRED_SPECS:
-        if cred_name in existing:
-            cred_ids[key] = existing[cred_name]
-            print(f"     ✓ reusing existing credential '{cred_name}'")
+        existing_id = env.get(ENV_ID_KEY[key])
+        if existing_id and n8n.credential_exists(existing_id):
+            cred_ids[key] = existing_id
+            print(f"     ✓ reusing '{cred_name}' from .env (id {existing_id[:8]}…)")
             continue
-        new_id, err = n8n.try_create_credential(cred_name, cred_type, build_data(env))
+        new_id, err = n8n.create_credential(cred_name, cred_type, build_data(env))
         if new_id:
             cred_ids[key] = new_id
-            print(f"     ✓ created credential '{cred_name}'")
+            newly_created[key] = new_id
+            print(f"     ✓ created '{cred_name}' (id {new_id[:8]}…)")
         else:
             failures.append(f"Could not create '{cred_name}' (type {cred_type}): {err}")
+
+    if newly_created:
+        persist_credential_ids(newly_created)
+        print(f"     → wrote {len(newly_created)} credential IDs to .env for idempotent reruns")
 
     return cred_ids, failures
 
@@ -230,31 +249,19 @@ def main():
     env = load_env()
     n8n = N8N(env["N8N_BASE_URL"], env["N8N_API_KEY"])
 
-    print("1/5  Resolving credentials in n8n (find or create)…")
+    print("1/5  Resolving credentials in n8n…")
     cred_ids, failures = resolve_credentials(n8n, env)
 
     if failures:
         print()
         print("─" * 72)
         print("⚠️  Some credentials could not be created via API.")
-        print("    This is usually an n8n version-specific schema issue.")
         print("─" * 72)
         for f in failures:
             print(f"    {f}")
         print()
-        print("Fallback: create the missing credentials manually in n8n UI, then rerun.")
-        print("n8n → Personal → Credentials tab → Add credential. Required:")
-        print()
-        print("  • Name: 'Slack Bot Token'        Type: Header Auth")
-        print("      Header: Authorization = Bearer <your xoxb- token>")
-        print("  • Name: 'Slack Bot (native)'     Type: Slack API")
-        print("      Access Token = <same xoxb- token>")
-        print("  • Name: 'OpenAI'                 Type: OpenAI API")
-        print("      API Key = <your sk- key>")
-        print("  • Name: 'Lemlist API'            Type: HTTP Basic Auth")
-        print("      User = <team name>, Password = <Lemlist API key>")
-        print()
-        print("Names must match exactly. Once created, rerun `python3 deploy.py`.")
+        print("Fallback: create the missing credentials manually in n8n UI, then")
+        print("paste the IDs into .env as N8N_CRED_ID_* vars and rerun.")
         sys.exit(1)
 
     print("2/5  Loading and patching workflow.json…")
@@ -267,9 +274,12 @@ def main():
     print("4/5  Activating workflow…")
     n8n.activate_workflow(wf_id)
 
-    print("5/5  Registering Lemlist webhook…")
+    print(f"5/5  Registering Lemlist webhook (type: {env['LEMLIST_WEBHOOK_TYPE']})…")
     lemlist_webhook_url = find_production_url(wf, "Webhook", env["N8N_BASE_URL"])
-    register_lemlist_webhook(env["LEMLIST_API_KEY"], env["LEMLIST_TEAM_NAME"], lemlist_webhook_url)
+    register_lemlist_webhook(
+        env["LEMLIST_API_KEY"], env["LEMLIST_TEAM_NAME"],
+        lemlist_webhook_url, env["LEMLIST_WEBHOOK_TYPE"]
+    )
 
     slack_interaction_url = find_production_url(wf, "Slack Interaction Webhook", env["N8N_BASE_URL"])
     wf_url = f"{env['N8N_BASE_URL']}/workflow/{wf_id}"
