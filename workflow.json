@@ -286,7 +286,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"sendUserId\": \"{{ $('Parse Slack Interaction').item.json.sendUserId }}\",\n  \"sendUserEmail\": \"{{ $('Parse Slack Interaction').item.json.senderEmail }}\",\n  \"sendUserMailboxId\": \"{{ $('Parse Slack Interaction').item.json.sendUserMailboxId }}\",\n  \"contactId\": \"{{ $('Parse Slack Interaction').item.json.contactId }}\",\n  \"leadId\": \"{{ $('Parse Slack Interaction').item.json.leadId }}\",\n  \"subject\": \"{{ $('Parse Slack Interaction').item.json.subject }}\",\n  \"message\": {{ JSON.stringify('<p>' + $('Parse Slack Interaction').item.json.draft.replace(/\\\\n\\\\n/g, '</p><p>').replace(/\\\\n/g, '<br>') + '</p>') }}\n}",
+        "jsonBody": "={\n  \"sendUserId\": \"{{ $('Parse Slack Interaction').item.json.sendUserId }}\",\n  \"sendUserEmail\": \"{{ $('Parse Slack Interaction').item.json.senderEmail }}\",\n  \"sendUserMailboxId\": \"{{ $('Parse Slack Interaction').item.json.sendUserMailboxId }}\",\n  \"contactId\": \"{{ $('Parse Slack Interaction').item.json.contactId }}\",\n  \"leadId\": \"{{ $('Parse Slack Interaction').item.json.leadId }}\",\n  \"subject\": \"{{ $('Parse Slack Interaction').item.json.subject }}\",\n  \"message\": {{ JSON.stringify('<p>' + $('Parse Slack Interaction').item.json.draft.replace(/\\n\\n/g, '</p><p>').replace(/\\n/g, '<br>') + '</p>') }}\n}",
         "options": {}
       },
       "id": "9de4136b-6869-46c8-89da-adf2a4c9c509",
@@ -511,7 +511,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"sendUserId\": \"{{ $('Parse Slack Interaction').item.json.sendUserId }}\",\n  \"sendUserEmail\": \"{{ $('Parse Slack Interaction').item.json.senderEmail }}\",\n  \"sendUserMailboxId\": \"{{ $('Parse Slack Interaction').item.json.sendUserMailboxId }}\",\n  \"contactId\": \"{{ $('Parse Slack Interaction').item.json.contactId }}\",\n  \"leadId\": \"{{ $('Parse Slack Interaction').item.json.leadId }}\",\n  \"subject\": \"{{ $('Parse Slack Interaction').item.json.subject }}\",\n  \"message\": {{ JSON.stringify('<p>' + $('Parse Slack Interaction').item.json.editedDraft.replace(/\\\\n\\\\n/g, '</p><p>').replace(/\\\\n/g, '<br>') + '</p>') }}\n}",
+        "jsonBody": "={\n  \"sendUserId\": \"{{ $('Parse Slack Interaction').item.json.sendUserId }}\",\n  \"sendUserEmail\": \"{{ $('Parse Slack Interaction').item.json.senderEmail }}\",\n  \"sendUserMailboxId\": \"{{ $('Parse Slack Interaction').item.json.sendUserMailboxId }}\",\n  \"contactId\": \"{{ $('Parse Slack Interaction').item.json.contactId }}\",\n  \"leadId\": \"{{ $('Parse Slack Interaction').item.json.leadId }}\",\n  \"subject\": \"{{ $('Parse Slack Interaction').item.json.subject }}\",\n  \"message\": {{ JSON.stringify('<p>' + $('Parse Slack Interaction').item.json.editedDraft.replace(/\\n\\n/g, '</p><p>').replace(/\\n/g, '<br>') + '</p>') }}\n}",
         "options": {
           "response": {
             "response": {
