@@ -179,66 +179,79 @@ def register_lemlist_webhook(api_key: str, team_name: str, webhook_url: str):
     return r.json()
 
 
+def patch_config_only(wf: dict, env: dict):
+    """Fill Config node values. Leave credentials empty — user wires them in UI."""
+    for node in wf["nodes"]:
+        if node["name"] == "Config":
+            for a in node["parameters"]["assignments"]["assignments"]:
+                if a["name"] == "companyName":
+                    a["value"] = env["COMPANY_NAME"]
+                elif a["name"] == "companyContext":
+                    a["value"] = env["COMPANY_CONTEXT"]
+                elif a["name"] == "slackChannelId":
+                    a["value"] = env["SLACK_CHANNEL_ID"]
+                elif a["name"] == "defaultLanguage":
+                    a["value"] = env["DEFAULT_LANGUAGE"]
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────
 def main():
     env = load_env()
     n8n = N8N(env["N8N_BASE_URL"], env["N8N_API_KEY"])
 
-    print("1/7  Creating credentials in n8n…")
-    slack_header_id = n8n.create_credential(
-        name="Slack Bot Token",
-        type_="httpHeaderAuth",
-        data={"name": "Authorization", "value": f"Bearer {env['SLACK_BOT_TOKEN']}"},
-    )
-    slack_native_id = n8n.create_credential(
-        name="Slack Bot (native)",
-        type_="slackApi",
-        data={"accessToken": env["SLACK_BOT_TOKEN"]},
-    )
-    openai_id = n8n.create_credential(
-        name="OpenAI",
-        type_="openAiApi",
-        data={"apiKey": env["OPENAI_API_KEY"]},
-    )
-    lemlist_id = n8n.create_credential(
-        name="Lemlist API",
-        type_="httpBasicAuth",
-        data={"user": env["LEMLIST_TEAM_NAME"], "password": env["LEMLIST_API_KEY"]},
-    )
-
-    print("2/7  Loading workflow.json…")
+    print("1/5  Loading workflow.json and filling Config node…")
     wf = json.loads(WORKFLOW_PATH.read_text())
+    patch_config_only(wf, env)
 
-    print("3/7  Patching nodes with credentials + Config values…")
-    patch_workflow(wf, {
-        "slack_header": slack_header_id,
-        "slack_native": slack_native_id,
-        "openai": openai_id,
-        "lemlist": lemlist_id,
-    }, env)
-
-    print("4/7  Importing workflow…")
+    print("2/5  Importing workflow…")
     wf_id = n8n.create_workflow(wf)
 
-    print("5/7  Activating workflow…")
-    n8n.activate_workflow(wf_id)
-
-    print("6/7  Registering Lemlist webhook for lemlistReplyReceived…")
+    print("3/5  Registering Lemlist webhook for lemlistReplyReceived…")
     lemlist_webhook_url = find_production_url(wf, "Webhook", env["N8N_BASE_URL"])
     register_lemlist_webhook(env["LEMLIST_API_KEY"], env["LEMLIST_TEAM_NAME"], lemlist_webhook_url)
 
-    print("7/7  Done. One last manual step below.\n")
+    print("4/5  Workflow imported, Lemlist webhook registered.")
+    print("5/5  Two manual steps remain — see below.\n")
 
     slack_interaction_url = find_production_url(wf, "Slack Interaction Webhook", env["N8N_BASE_URL"])
+    wf_url = f"{env['N8N_BASE_URL']}/workflow/{wf_id}"
+
     print("─" * 72)
-    print("FINAL MANUAL STEP — paste this URL into your Slack app:")
+    print("MANUAL STEP A — Create 4 credentials in n8n and assign them")
+    print("─" * 72)
+    print(f"Open the workflow: {wf_url}")
+    print()
+    print("In n8n → Credentials → Add credential, create these 4:")
+    print()
+    print("  1. Slack Bot Token  (type: Header Auth)")
+    print(f"       Header name  : Authorization")
+    print(f"       Header value : Bearer {env['SLACK_BOT_TOKEN'][:8]}… (from .env)")
+    print("       Assign to   : Slack Post Message (HTTP), Open Edit Modal")
+    print()
+    print("  2. Slack Bot (native)  (type: Slack API)")
+    print(f"       Access Token : {env['SLACK_BOT_TOKEN'][:8]}… (from .env, same xoxb-)")
+    print("       Assign to   : Update Slack - Sent / Manual / Edited & Sent")
+    print()
+    print("  3. OpenAI  (type: OpenAI API)")
+    print(f"       API Key     : {env['OPENAI_API_KEY'][:7]}… (from .env)")
+    print("       Assign to   : OpenAI Chat Model, OpenAI Chat Model1")
+    print()
+    print("  4. Lemlist API  (type: HTTP Basic Auth)")
+    print(f"       Username    : {env['LEMLIST_TEAM_NAME']}")
+    print(f"       Password    : (Lemlist API key from .env)")
+    print("       Assign to   : Send Reply via Lemlist, Send Edited Reply via Lemlist")
+    print()
+    print("Then toggle the workflow Active (top-right switch).")
+    print()
+    print("─" * 72)
+    print("MANUAL STEP B — Paste this URL into your Slack app:")
+    print("─" * 72)
     print(f"  {slack_interaction_url}")
     print()
     print("  1. api.slack.com/apps → your app → Interactivity & Shortcuts")
     print("  2. Replace the placeholder Request URL with the URL above")
     print("  3. Save Changes")
     print("─" * 72)
-    print(f"\nWorkflow URL: {env['N8N_BASE_URL']}/workflow/{wf_id}")
 
 
 if __name__ == "__main__":
